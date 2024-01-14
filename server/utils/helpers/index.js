@@ -16,6 +16,9 @@ function getVectorDbClass() {
     case "qdrant":
       const { QDrant } = require("../vectorDbProviders/qdrant");
       return QDrant;
+    case "milvus":
+      const { Milvus } = require("../vectorDbProviders/milvus");
+      return Milvus;
     default:
       throw new Error("ENV: No VECTOR_DB value found in environment!");
   }
@@ -46,6 +49,9 @@ function getLLMProvider() {
     case "ollama":
       const { OllamaAILLM } = require("../AiProviders/ollama");
       return new OllamaAILLM(embedder);
+    case "togetherai":
+      const { TogetherAiLLM } = require("../AiProviders/togetherAi");
+      return new TogetherAiLLM(embedder);
     case "native":
       const { NativeLLM } = require("../AiProviders/native");
       return new NativeLLM(embedder);

@@ -15,6 +15,7 @@ const {
   makeJWT,
   userFromSession,
   multiUserMode,
+  queryParams,
 } = require("../utils/http");
 const {
   setupDataImports,
@@ -106,6 +107,8 @@ function systemEndpoints(app) {
 
   app.post("/request-token", async (request, response) => {
     try {
+      const bcrypt = require("bcrypt");
+
       if (await SystemSettings.isMultiUserMode()) {
         const { username, password } = reqBody(request);
         const existingUser = await User.get({ username });
@@ -120,7 +123,6 @@ function systemEndpoints(app) {
           return;
         }
 
-        const bcrypt = require("bcrypt");
         if (!bcrypt.compareSync(password, existingUser.password)) {
           response.status(200).json({
             user: null,
@@ -158,7 +160,12 @@ function systemEndpoints(app) {
         return;
       } else {
         const { password } = reqBody(request);
-        if (password !== process.env.AUTH_TOKEN) {
+        if (
+          !bcrypt.compareSync(
+            password,
+            bcrypt.hashSync(process.env.AUTH_TOKEN, 10)
+          )
+        ) {
           response.status(401).json({
             valid: false,
             token: null,
@@ -180,16 +187,23 @@ function systemEndpoints(app) {
     }
   });
 
-  app.get("/system/system-vectors", [validatedRequest], async (_, response) => {
-    try {
-      const VectorDb = getVectorDbClass();
-      const vectorCount = await VectorDb.totalVectors();
-      response.status(200).json({ vectorCount });
-    } catch (e) {
-      console.log(e.message, e);
-      response.sendStatus(500).end();
+  app.get(
+    "/system/system-vectors",
+    [validatedRequest],
+    async (request, response) => {
+      try {
+        const query = queryParams(request);
+        const VectorDb = getVectorDbClass();
+        const vectorCount = !!query.slug
+          ? await VectorDb.namespaceCount(query.slug)
+          : await VectorDb.totalVectors();
+        response.status(200).json({ vectorCount });
+      } catch (e) {
+        console.log(e.message, e);
+        response.sendStatus(500).end();
+      }
     }
-  });
+  );
 
   app.delete(
     "/system/remove-document",
@@ -269,6 +283,12 @@ function systemEndpoints(app) {
     [validatedRequest, flexUserRoleValid],
     async (request, response) => {
       try {
+        const user = await userFromSession(request, response);
+        if (!!user && user.role !== "admin") {
+          response.sendStatus(401).end();
+          return;
+        }
+
         const body = reqBody(request);
         const { newValues, error } = updateENV(body);
         if (process.env.NODE_ENV === "production") await dumpENV();

@@ -112,9 +112,15 @@ const QDrant = {
     if (await this.namespaceExists(client, namespace)) {
       return await client.getCollection(namespace);
     }
+
+    const embedder = getEmbeddingEngineSelection();
+    if (!embedder.dimensions)
+      throw new Error(
+        `Your embedder selection has unknown dimensions output. It should be defined when using ${this.name}. Open an issue on Github for support.`
+      );
     await client.createCollection(namespace, {
       vectors: {
-        size: 1536, //TODO: Fixed to OpenAI models - when other embeddings exist make variable.
+        size: embedder.dimensions,
         distance: "Cosine",
       },
     });
@@ -152,13 +158,20 @@ const QDrant = {
 
           // Before sending to Qdrant and saving the records to our db
           // we need to assign the id of each chunk that is stored in the cached file.
+          // The id property must be defined or else it will be unable to be managed by ALLM.
           chunk.forEach((chunk) => {
             const id = uuidv4();
-            const { id: _id, ...payload } = chunk.payload;
-            documentVectors.push({ docId, vectorId: id });
-            submission.ids.push(id);
-            submission.vectors.push(chunk.vector);
-            submission.payloads.push(payload);
+            if (chunk?.payload?.hasOwnProperty("id")) {
+              const { id: _id, ...payload } = chunk.payload;
+              documentVectors.push({ docId, vectorId: id });
+              submission.ids.push(id);
+              submission.vectors.push(chunk.vector);
+              submission.payloads.push(payload);
+            } else {
+              console.error(
+                "The 'id' property is not defined in chunk.payload - it will be omitted from being inserted in QDrant collection."
+              );
+            }
           });
 
           const additionResult = await client.upsert(namespace, {

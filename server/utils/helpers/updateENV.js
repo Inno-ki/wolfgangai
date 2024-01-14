@@ -170,6 +170,30 @@ const KEY_MAPPING = {
     checks: [],
   },
 
+  // Milvus Options
+  MilvusAddress: {
+    envKey: "MILVUS_ADDRESS",
+    checks: [isValidURL, validDockerizedUrl],
+  },
+  MilvusUsername: {
+    envKey: "MILVUS_USERNAME",
+    checks: [isNotEmpty],
+  },
+  MilvusPassword: {
+    envKey: "MILVUS_PASSWORD",
+    checks: [isNotEmpty],
+  },
+
+  // Together Ai Options
+  TogetherAiApiKey: {
+    envKey: "TOGETHER_AI_API_KEY",
+    checks: [isNotEmpty],
+  },
+  TogetherAiModelPref: {
+    envKey: "TOGETHER_AI_MODEL_PREF",
+    checks: [isNotEmpty],
+  },
+
   // System Settings
   AuthToken: {
     envKey: "AUTH_TOKEN",
@@ -233,7 +257,7 @@ function validOllamaLLMBasePath(input = "") {
 }
 
 function supportedLLM(input = "") {
-  return [
+  const validSelection = [
     "openai",
     "azure",
     "anthropic",
@@ -242,7 +266,9 @@ function supportedLLM(input = "") {
     "localai",
     "ollama",
     "native",
+    "togetherai",
   ].includes(input);
+  return validSelection ? null : `${input} is not a valid LLM provider.`;
 }
 
 function validGeminiModel(input = "") {
@@ -267,7 +293,14 @@ function supportedEmbeddingModel(input = "") {
 }
 
 function supportedVectorDB(input = "") {
-  const supported = ["chroma", "pinecone", "lancedb", "weaviate", "qdrant"];
+  const supported = [
+    "chroma",
+    "pinecone",
+    "lancedb",
+    "weaviate",
+    "qdrant",
+    "milvus",
+  ];
   return supported.includes(input)
     ? null
     : `Invalid VectorDB type. Must be one of ${supported.join(", ")}.`;
